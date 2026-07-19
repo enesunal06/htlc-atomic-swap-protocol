@@ -13,7 +13,7 @@ from atomic_swap.errors import (
 
 class HTLCState(str, Enum):
     LOCKED = "Locked"
-    REDEEEMED = "Redeemed"
+    REDEEMED = "Redeemed"
     REFUNDED = "Refunded"
 
 
@@ -42,7 +42,7 @@ class HTLC:
         if sha256(preimage).digest() != self.hash_value:
             raise InvalidPreimage("The supplied preimage is invalid.")
 
-        self.state = HTLCState.REDEEEMED
+        self.state = HTLCState.REDEEMED
         self.revealed_preimage = preimage
 
     def refund(
