@@ -21,3 +21,28 @@ class SimulatedChain:
         if amount < 0:
             raise ValueError("Time cannot monve backwards.")
         self.current_time += amount
+
+    def redeem_htlc(
+            self,
+            contract_id: str,
+            caller: str,
+            preimage: bytes,
+    ) -> None:
+        contract = self.contracts[contract_id]
+        contract.redeem(
+            caller=caller,
+            preimage=preimage,
+            current_time=self.current_time
+        )
+
+    def refund_htlc(
+            self,
+            contract_id: str,
+            caller: str,
+    ) -> None:
+        contract = self.contracts[contract_id]
+        contract.refund(
+            caller=caller,
+            current_time=self.current_time
+        )
+

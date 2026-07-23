@@ -3,6 +3,7 @@ from hmac import digest
 from atomic_swap.htlc import HTLC
 from atomic_swap.chain import SimulatedChain
 import pytest
+from atomic_swap.htlc import HTLC, HTLCState
 
 def test_chain_starts_with_empty_state() -> None:
     chain = SimulatedChain(name="ChainA")
@@ -88,5 +89,54 @@ def test_time_cannot_move_backwards() -> None:
     with pytest.raises(ValueError):
         chain.advance_time(-1)
     assert chain.current_time == 10
-    
 
+
+
+def test_chain_redeems_htlc_using_its_current_time() -> None:
+    secret = b"atomic swap secret"
+    contract = HTLC(
+        owner="Alice",
+        recipient="Bob",
+        amount=100,
+        hash_value=sha256(secret).digest(),
+        deadline=50,
+    )
+    chain = SimulatedChain(name="ChainA")
+
+    chain.deploy_htlc(
+        contract_id="alice-lock",
+        htlc=contract,
+     )
+    chain.advance_time(20)
+    chain.redeem_htlc(
+        contract_id="alice-lock",
+        caller="Bob",
+        preimage=secret,
+    )
+    assert contract.state is HTLCState.REDEEMED
+    assert contract.revealed_preimage == secret
+
+
+
+def test_chain_refunds_htlc_using_its_current_time() -> None:
+    secret = b"atomic swap secret"
+    contract = HTLC(
+        owner="Alice",
+        recipient="Bob",
+        amount=100,
+        hash_value=sha256(secret).digest(),
+        deadline=50,
+    )
+    chain = SimulatedChain(name="ChainA")
+    chain.deploy_htlc(
+        contract_id="alice-lock",
+        htlc=contract,
+    )
+    chain.advance_time(50)
+    chain.refund_htlc(
+        contract_id="alice-lock",
+        caller="Alice",
+    )
+    assert contract.state is HTLCState.REFUNDED
+    assert contract.revealed_preimage is None
+    
