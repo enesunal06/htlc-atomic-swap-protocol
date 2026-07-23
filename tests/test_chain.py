@@ -73,3 +73,20 @@ def test_duplicate_contract_id_is_rejected() -> None:
         htlc=second_contract,
         )
     assert chain.contracts["swap-1"] is first_contract
+
+def test_advance_time_increases_chain_time() -> None:
+    chain = SimulatedChain(name="ChainA")
+    chain.advance_time(10)
+    assert chain.current_time == 10
+    chain.advance_time(5)
+    assert chain.current_time == 15
+
+
+def test_time_cannot_move_backwards() -> None:
+    chain = SimulatedChain(name="ChainA")
+    chain.advance_time(10)
+    with pytest.raises(ValueError):
+        chain.advance_time(-1)
+    assert chain.current_time == 10
+    
+
