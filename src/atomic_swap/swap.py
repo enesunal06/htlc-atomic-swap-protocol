@@ -69,3 +69,14 @@ class AtomicSwap:
           caller=self.bob,
           preimage=revealed_secret,
     )
+
+    def bob_refund(self) -> None:
+        self.chain_b.refund_htlc(
+            contract_id=self.bob_contract_id,
+            caller=self.bob,
+        )
+    def alice_refund(self) -> None:
+        self.chain_a.refund_htlc(
+            contract_id=self.alice_contract_id,
+            caller=self.alice,
+        )

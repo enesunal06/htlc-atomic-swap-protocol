@@ -136,16 +136,10 @@ def test_both_parties_can_refund_if_alice_never_redeems() -> None:
     swap.participate()
 
     swap.chain_b.advance_time(50)
-    swap.chain_b.refund_htlc(
-        contract_id="bob-lock",
-        caller="Bob",
-    )
+    swap.bob_refund()
 
     swap.chain_a.advance_time(100)
-    swap.chain_a.refund_htlc(
-        contract_id="alice-lock",
-        caller="Alice",
-    )
+    swap.alice_refund()
 
     alice_contract = swap.chain_a.contracts["alice-lock"]
     bob_contract = swap.chain_b.contracts["bob-lock"]
