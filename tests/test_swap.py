@@ -15,6 +15,8 @@ def test_atomic_swap_accepts_safe_timeout_order() -> None:
         bob_contract_id="bob-lock",
         alice_deadline=100,
         bob_deadline=50,
+        alice_amount=100,
+        bob_amount=250,
     )
     assert swap.alice_deadline == 100
     assert swap.bob_deadline == 50
@@ -32,6 +34,8 @@ def test_equal_deadlines_are_rejected() -> None:
             bob_contract_id="bob-lock",
             alice_deadline=50,
             bob_deadline=50,
+            alice_amount=100,
+            bob_amount=250,
         )
 
 
@@ -47,4 +51,6 @@ def test_shorter_alice_deadline_is_rejected() -> None:
             bob_contract_id="bob-lock",
             alice_deadline=40,
             bob_deadline=50,
+            alice_amount=100,
+            bob_amount=250,
         )
