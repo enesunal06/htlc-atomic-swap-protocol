@@ -10,15 +10,15 @@ The goal of this repository is to turn the protocol logic behind HTLC-based atom
 
 The project focuses on:
 
-* HTLC state transitions
-* Hashlock and preimage verification
-* Redeem and refund paths
-* Cross-chain secret revelation
-* Asymmetric timeout design
-* Aborted and invalid swap scenarios
-* Protocol assumptions and limitations
+- HTLC state transitions
+- Hashlock and preimage verification
+- Redeem and refund paths
+- Cross-chain secret revelation
+- Asymmetric timeout design
+- Aborted and invalid swap scenarios
+- Protocol assumptions and limitations
 
-This is a protocol simulation, not a production blockchain application. The first version does not connect to real networks, wallets, RPC endpoints, or smart contracts.
+This is a protocol simulation, not a production blockchain application. It does not connect to real networks, wallets, RPC endpoints, or smart contracts.
 
 ## Why This Project?
 
@@ -43,8 +43,8 @@ HTLC stands for Hash Time-Locked Contract.
 
 An HTLC combines two conditions:
 
-* **Hashlock:** The recipient must reveal a valid preimage whose hash matches the stored hash value.
-* **Timelock:** If the recipient does not redeem before the deadline, the original owner can refund the locked asset.
+- **Hashlock:** The recipient must reveal a valid preimage whose hash matches the stored hash value.
+- **Timelock:** If the recipient does not redeem before the deadline, the original owner can refund the locked asset.
 
 A simplified state transition model is:
 
@@ -55,7 +55,43 @@ LOCKED -> REFUNDED
 
 A redeemed or refunded HTLC cannot be spent again.
 
-## Planned Structure
+## Protocol Flow
+
+The implementation uses two simulated chains and two HTLCs.
+
+```text
+Chain A
+Alice locks funds for Bob
+Deadline: longer
+
+Chain B
+Bob locks funds for Alice
+Deadline: shorter
+```
+
+The safe timeout condition is:
+
+```text
+alice_deadline > bob_deadline
+```
+
+The successful flow is:
+
+```text
+Alice creates HTLC on Chain A
+        |
+Bob creates HTLC on Chain B
+        |
+Alice redeems on Chain B and reveals the secret
+        |
+Bob reads the revealed secret
+        |
+Bob redeems on Chain A
+```
+
+If the swap stops before completion, each party can use the refund path after the relevant deadline.
+
+## Project Structure
 
 ```text
 htlc-atomic-swap-protocol/
@@ -65,50 +101,80 @@ htlc-atomic-swap-protocol/
 │       ├── htlc.py
 │       ├── chain.py
 │       ├── swap.py
-│       ├── errors.py
-│       └── events.py
+│       └── errors.py
 │
 ├── tests/
+│   ├── test_htlc.py
+│   ├── test_chain.py
+│   └── test_swap.py
+│
 ├── examples/
+│   └── successful_swap.py
+│
 ├── docs/
+│   └── threat_model.md
+│
 ├── pyproject.toml
 └── README.md
 ```
 
-## Roadmap
+## Current Implementation
 
-### v0.1.0 - HTLC Atomic Swap Simulation
+The current version includes:
 
-* Implement a single HTLC state machine
-* Implement redeem and refund rules
-* Simulate two independent chains
-* Coordinate two HTLCs into an atomic swap
-* Model secret revelation across chains
-* Validate safe timeout ordering
-* Add successful, aborted, and invalid swap tests
-* Document the threat model and protocol assumptions
+- A single-contract HTLC state machine
+- SHA-256 hashlock verification
+- Recipient-only redeem rules
+- Owner-only refund rules
+- Deadline checks
+- Protection against reusing spent contracts
+- Independent simulated chain state and time
+- Two-chain atomic swap coordination
+- Safe timeout-order validation
+- Cross-chain secret revelation
+- Successful swap flow
+- Refund flows for aborted swaps
+- Custom protocol errors
+- A runnable example
+- A documented threat model
+- Automated tests for valid and invalid scenarios
 
-### v0.2.0 - Schnorr Adaptor Signatures
+## Failure Cases Covered
 
-* Package and reuse the existing elliptic-curve implementation from `crypto-primitives-from-scratch`
-* Implement Schnorr signatures
-* Implement adaptor pre-signatures
-* Implement signature adaptation
-* Extract the secret from the completed signature
-* Compare HTLC-based and scriptless atomic swaps
+The test suite covers cases such as:
 
-### v0.3.0 - Schnorr Identification and ZK Analysis
+- invalid preimage
+- unauthorized redeem
+- unauthorized refund
+- redeem at or after the deadline
+- refund before the deadline
+- redeem after refund
+- refund after redeem
+- duplicate contract IDs
+- negative chain-time movement
+- unsafe timeout ordering
+- Bob never participating
+- Alice never revealing the secret
+- Bob trying to redeem before the secret is revealed
+- Alice trying to redeem with the wrong secret
+- Alice trying to redeem after Bob's deadline
 
-* Implement the Schnorr identification protocol
-* Explain completeness, soundness, and zero knowledge
-* Clarify why adaptor signatures are not themselves zero-knowledge proofs
-* Compare the role of shared discrete-logarithm mathematics across the protocols
+## Running the Example
 
-## Current Status
+Install the project first, then run:
 
-The repository structure and Python development environment have been initialized.
+```powershell
+python examples\successful_swap.py
+```
 
-The next step is to implement the single-contract HTLC state machine and its unit tests.
+Expected output:
+
+```text
+Atomic swap completed
+Chain A contract: redeemed
+Chain B contract: redeemed
+Same secret revealed on both chains: True
+```
 
 ## Development Setup
 
@@ -132,17 +198,77 @@ Run the test suite:
 pytest
 ```
 
+Run the tests with detailed output:
+
+```powershell
+pytest -v
+```
+
+## Threat Model
+
+The protocol assumptions, failure behavior, security boundaries, and out-of-scope risks are documented in:
+
+```text
+docs/threat_model.md
+```
+
+The main assumptions are:
+
+- SHA-256 is preimage-resistant.
+- Both chains continue processing transactions.
+- Bob can observe Alice's redeem transaction.
+- HTLC rules are enforced correctly.
+- Alice's refund deadline is longer than Bob's.
+
 ## Scope
 
-This repository currently does not attempt to model:
+This repository does not attempt to model:
 
-* Blockchain consensus
-* Mining or validators
-* Chain reorganizations
-* Mempool behavior
-* Transaction fees
-* Real token transfers
-* Wallet key management
-* Production smart-contract security
+- blockchain consensus
+- mining or validators
+- chain reorganizations
+- mempool behavior
+- transaction fees
+- real token transfers
+- wallet key management
+- network communication
+- real smart contracts
+- production smart-contract security
 
-The initial focus is protocol correctness at the state-machine level.
+The current focus is protocol correctness at the state-machine level.
+
+## Roadmap
+
+### v0.1.0 - HTLC Atomic Swap Simulation
+
+- [x] Implement a single HTLC state machine
+- [x] Implement redeem and refund rules
+- [x] Simulate two independent chains
+- [x] Coordinate two HTLCs into an atomic swap
+- [x] Model secret revelation across chains
+- [x] Validate safe timeout ordering
+- [x] Add successful, aborted, and invalid swap tests
+- [x] Add a runnable example
+- [x] Document the threat model and protocol assumptions
+
+### v0.2.0 - Schnorr Adaptor Signatures
+
+- [ ] Package and reuse the existing elliptic-curve implementation from `crypto-primitives-from-scratch`
+- [ ] Implement Schnorr signatures
+- [ ] Implement adaptor pre-signatures
+- [ ] Implement signature adaptation
+- [ ] Extract the secret from the completed signature
+- [ ] Compare HTLC-based and scriptless atomic swaps
+
+### v0.3.0 - Schnorr Identification and ZK Analysis
+
+- [ ] Implement the Schnorr identification protocol
+- [ ] Explain completeness, soundness, and zero knowledge
+- [ ] Clarify why adaptor signatures are not themselves zero-knowledge proofs
+- [ ] Compare the role of shared discrete-logarithm mathematics across the protocols
+
+## Disclaimer
+
+This project is for learning, research, and protocol analysis.
+
+It is not production code and should not be used to transfer real assets.
