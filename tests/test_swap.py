@@ -1,7 +1,7 @@
 from hashlib import sha256
 import pytest
 from atomic_swap.chain import SimulatedChain
-from atomic_swap.errors import UnsafeTimeoutOrder
+from atomic_swap.errors import UnsafeTimeoutOrder, SecretNotRevealed
 from atomic_swap.swap import AtomicSwap
 from atomic_swap.htlc import HTLCState
 
@@ -154,3 +154,31 @@ def test_both_parties_can_refund_if_alice_never_redeems() -> None:
     assert bob_contract.state is HTLCState.REFUNDED
     assert alice_contract.revealed_preimage is None
     assert bob_contract.revealed_preimage is None
+
+
+def test_bob_cannot_redeem_befor_secret_is_revealed() -> None:
+    secret = b"atomic swap secret"
+    swap = AtomicSwap(
+        chain_a=SimulatedChain(name="ChainA"),
+        chain_b=SimulatedChain(name="ChainB"),
+        alice="Alice",
+        bob="Bob",
+        alice_amount=100,
+        bob_amount=250,
+        hash_value=sha256(secret).digest(),
+        alice_contract_id="alice-lock",
+        bob_contract_id="bob-lock",
+        alice_deadline=100,
+        bob_deadline=50,
+    )
+    swap.initiate()
+    swap.participate()
+    with pytest.raises(SecretNotRevealed):
+        swap.bob_redeem()
+    alice_contract = swap.chain_a.contracts["alice-lock"]
+    bob_contract = swap.chain_b.contracts["bob-lock"]
+
+    assert alice_contract.state is HTLCState.LOCKED
+    assert bob_contract.state is HTLCState.LOCKED
+    assert bob_contract.revealed_preimage is None
+    

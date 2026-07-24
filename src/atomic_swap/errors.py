@@ -13,3 +13,6 @@ class ContractAlreadySpent(HTLCError):
 
 class UnsafeTimeoutOrder(HTLCError):
     """Raised when atomic swap refund readlines are ordered unsafely."""
+
+class SecretNotRevealed(HTLCError):
+    """Raised when Bob tries to redeem before Alice reveals the secret."""

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from atomic_swap.chain import SimulatedChain
-from atomic_swap.errors import UnsafeTimeoutOrder
+from atomic_swap.errors import UnsafeTimeoutOrder, SecretNotRevealed
 from atomic_swap.htlc import HTLC
 @dataclass
 class AtomicSwap:
@@ -60,7 +60,7 @@ class AtomicSwap:
         revealed_secret = bob_contract.revealed_preimage
 
         if revealed_secret is None:
-          raise ValueError(
+          raise SecretNotRevealed(
             "The secret has not been revealed on Chain B."
         )
 
