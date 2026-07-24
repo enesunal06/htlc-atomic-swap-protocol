@@ -3,6 +3,7 @@ import pytest
 from atomic_swap.chain import SimulatedChain
 from atomic_swap.errors import UnsafeTimeoutOrder
 from atomic_swap.swap import AtomicSwap
+from atomic_swap.htlc import HTLCState
 
 def test_atomic_swap_accepts_safe_timeout_order() -> None:
     swap = AtomicSwap(
@@ -54,3 +55,31 @@ def test_shorter_alice_deadline_is_rejected() -> None:
             alice_amount=100,
             bob_amount=250,
         )
+
+def test_succesful_atomic_swap_redeems_both_contracts() -> None:
+    secret = b"atomic swap secret"
+    swap = AtomicSwap(
+        chain_a=SimulatedChain(name="ChainA"),
+        chain_b=SimulatedChain(name="ChainB"),
+        alice="Alice",
+        bob="Bob",
+        alice_amount=100,
+        bob_amount=250,
+        hash_value=sha256(secret).digest(),
+        alice_contract_id="alice-lock",
+        bob_contract_id="bob-lock",
+        alice_deadline=100,
+        bob_deadline=50,
+    )
+    swap.initiate()
+    swap.participate()
+    swap.chain_b.advance_time(20)
+    swap.alice_redeem(secret)
+    swap.chain_a.advance_time(30)
+    swap.bob_redeem()
+    alice_contract = swap.chain_a.contracts["alice-lock"]
+    bob_contract = swap.chain_b.contracts["bob-lock"]
+    assert alice_contract.state is HTLCState.REDEEMED
+    assert bob_contract.state is HTLCState.REDEEMED
+    assert alice_contract.revealed_preimage == secret
+    assert bob_contract.revealed_preimage == secret
