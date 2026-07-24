@@ -1,7 +1,7 @@
 from hashlib import sha256
 import pytest
 from atomic_swap.chain import SimulatedChain
-from atomic_swap.errors import UnsafeTimeoutOrder, SecretNotRevealed
+from atomic_swap.errors import UnsafeTimeoutOrder, SecretNotRevealed, InvalidPreimage, DeadlineExpired
 from atomic_swap.swap import AtomicSwap
 from atomic_swap.htlc import HTLCState
 
@@ -181,4 +181,72 @@ def test_bob_cannot_redeem_befor_secret_is_revealed() -> None:
     assert alice_contract.state is HTLCState.LOCKED
     assert bob_contract.state is HTLCState.LOCKED
     assert bob_contract.revealed_preimage is None
-    
+
+
+
+def test_alice_cannot_redeem_with_wrong_secret() -> None:
+    secret = b"atomic swap secret"
+
+    swap = AtomicSwap(
+        chain_a=SimulatedChain(name="Chain A"),
+        chain_b=SimulatedChain(name="Chain B"),
+        alice="Alice",
+        bob="Bob",
+        alice_amount=100,
+        bob_amount=250,
+        hash_value=sha256(secret).digest(),
+        alice_contract_id="alice-lock",
+        bob_contract_id="bob-lock",
+        alice_deadline=100,
+        bob_deadline=50,
+    )
+
+    swap.initiate()
+    swap.participate()
+
+    swap.chain_b.advance_time(20)
+
+    with pytest.raises(InvalidPreimage):
+        swap.alice_redeem(b"wrong secret")
+
+    alice_contract = swap.chain_a.contracts["alice-lock"]
+    bob_contract = swap.chain_b.contracts["bob-lock"]
+
+    assert alice_contract.state is HTLCState.LOCKED
+    assert bob_contract.state is HTLCState.LOCKED
+    assert bob_contract.revealed_preimage is None
+
+
+
+
+def test_alice_cannot_redeem_after_bob_deadline() -> None:
+    secret = b"atomic swap secret"
+
+    swap = AtomicSwap(
+        chain_a=SimulatedChain(name="Chain A"),
+        chain_b=SimulatedChain(name="Chain B"),
+        alice="Alice",
+        bob="Bob",
+        alice_amount=100,
+        bob_amount=250,
+        hash_value=sha256(secret).digest(),
+        alice_contract_id="alice-lock",
+        bob_contract_id="bob-lock",
+        alice_deadline=100,
+        bob_deadline=50,
+    )
+
+    swap.initiate()
+    swap.participate()
+
+    swap.chain_b.advance_time(50)
+
+    with pytest.raises(DeadlineExpired):
+        swap.alice_redeem(secret)
+
+    alice_contract = swap.chain_a.contracts["alice-lock"]
+    bob_contract = swap.chain_b.contracts["bob-lock"]
+
+    assert alice_contract.state is HTLCState.LOCKED
+    assert bob_contract.state is HTLCState.LOCKED
+    assert bob_contract.revealed_preimage is None
